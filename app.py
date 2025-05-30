@@ -1,5 +1,6 @@
 from flask import Flask, request, render_template_string
 import pandas as pd
+import os
 
 app = Flask(__name__)
 
@@ -80,7 +81,7 @@ form_html = '''
       <input type="submit" value="Comparar" />
     </form>
     <div class="footer">
-      <p>Solo archivos Excel (.xlsx) con columna "ID".</p>
+      <p>Solo archivos Excel (.xls o .xlsx) con columna "Nro Orden" o "N° Orden".</p>
     </div>
   </div>
 </body>
@@ -186,6 +187,16 @@ result_html = '''
 </html>
 '''
 
+def leer_excel_adaptativo(archivo):
+    nombre = archivo.filename
+    ext = os.path.splitext(nombre)[1].lower()
+    if ext == '.xls':
+        return pd.read_excel(archivo, engine='xlrd')
+    elif ext == '.xlsx':
+        return pd.read_excel(archivo, engine='openpyxl')
+    else:
+        raise ValueError("Formato no soportado: debe ser .xls o .xlsx")
+
 @app.route('/', methods=['GET', 'POST'])
 def upload_files():
     if request.method == 'POST':
@@ -196,8 +207,8 @@ def upload_files():
             return "Por favor, subí los dos archivos"
 
         try:
-            df1 = pd.read_excel(archivo1, engine='openpyxl')
-            df2 = pd.read_excel(archivo2, engine='openpyxl')
+            df1 = leer_excel_adaptativo(archivo1)
+            df2 = leer_excel_adaptativo(archivo2)
         except Exception as e:
             return f"Error al leer los archivos: {e}"
 
@@ -208,7 +219,7 @@ def upload_files():
         columna_id_2 = next((col for col in posibles_nombres_id if col in df2.columns), None)
 
         if not columna_id_1 or not columna_id_2:
-          return "Error: No se encontró una columna de Orden válida en uno o ambos archivos."
+            return "Error: No se encontró una columna de Orden válida en uno o ambos archivos."
 
         # Extraer y comparar los valores
         ids1 = set(df1[columna_id_1].dropna().astype(str))
