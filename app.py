@@ -193,7 +193,7 @@ def upload_files():
         archivo2 = request.files.get('archivo2')
 
         if not archivo1 or not archivo2:
-            return "Por favor, subí ambos archivos"
+            return "Por favor, subí los dos archivos"
 
         try:
             df1 = pd.read_excel(archivo1, engine='openpyxl')
@@ -201,13 +201,18 @@ def upload_files():
         except Exception as e:
             return f"Error al leer los archivos: {e}"
 
-        columna_id = 'ID'
+        posibles_nombres_id = ['Nro Orden', 'N° Orden']
 
-        if columna_id not in df1.columns or columna_id not in df2.columns:
-            return f"Error: Ambos archivos deben contener la columna '{columna_id}'."
+        # Buscar el nombre correcto en cada archivo
+        columna_id_1 = next((col for col in posibles_nombres_id if col in df1.columns), None)
+        columna_id_2 = next((col for col in posibles_nombres_id if col in df2.columns), None)
 
-        ids1 = set(df1[columna_id].dropna().astype(str))
-        ids2 = set(df2[columna_id].dropna().astype(str))
+        if not columna_id_1 or not columna_id_2:
+          return "Error: No se encontró una columna de Orden válida en uno o ambos archivos."
+
+        # Extraer y comparar los valores
+        ids1 = set(df1[columna_id_1].dropna().astype(str))
+        ids2 = set(df2[columna_id_2].dropna().astype(str))
 
         ids_solo_1 = sorted(ids1 - ids2)
         ids_solo_2 = sorted(ids2 - ids1)
