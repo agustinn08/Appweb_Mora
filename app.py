@@ -190,21 +190,25 @@ result_html = '''
 # Tu HTML se mantiene igual (no lo repito aquí para ahorrar espacio)
 
 # Función para leer archivo Excel con el engine correcto
-def leer_excel(file):
-    filename = file.filename
-    extension = os.path.splitext(filename)[-1].lower()
+def leer_excel_seguro(file):
+    extension = os.path.splitext(file.filename)[-1].lower()
+    file.seek(0)
 
-    try:
-        if extension == '.xlsx':
-            return pd.read_excel(file, engine='openpyxl')
-        elif extension == '.xls':
+    if extension == '.xls':
+        try:
             file.seek(0)
-            return pd.read_excel(file, engine='xlrd')
-        else:
-            raise ValueError("El archivo debe ser .xls o .xlsx")
-    except Exception as e:
-        raise ValueError(f"No se pudo leer el archivo: {e}")
-
+            return pd.read_excel(file, sheet_name=None, engine='xlrd')
+        except Exception as e:
+            raise ValueError(f"No se pudo leer el archivo .xls. Detalle: {e}")
+    elif extension == '.xlsx':
+        try:
+            file.seek(0)
+            return pd.read_excel(file, sheet_name=None, engine='openpyxl')
+        except Exception as e:
+            raise ValueError(f"No se pudo leer el archivo .xlsx. Detalle: {e}")
+    else:
+        raise ValueError("Extensión no soportada. Use archivos .xls o .xlsx")
+    
 # Función para comparar los archivos por el nombre de las hojas
 def comparar_archivos(df1, df2):
     resultados = []
