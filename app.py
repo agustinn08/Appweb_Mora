@@ -194,51 +194,74 @@ def leer_excel(file):
     filename = file.filename
     extension = os.path.splitext(filename)[-1].lower()
 
-    if extension == '.xls':
-        return pd.read_excel(file, engine='xlrd')
-    elif extension == '.xlsx':
-        return pd.read_excel(file, engine='openpyxl')
-    else:
-        raise ValueError("El archivo debe ser .xls o .xlsx")
+    try:
+        if extension == '.xlsx':
+            return pd.read_excel(file, engine='openpyxl')
+        elif extension == '.xls':
+            file.seek(0)
+            return pd.read_excel(file, engine='xlrd')
+        else:
+            raise ValueError("El archivo debe ser .xls o .xlsx")
+    except Exception as e:
+        raise ValueError(f"No se pudo leer el archivo: {e}")
 
-def encontrar_columna_id(columnas):
-    posibles = ['nro', 'n°', 'n*', 'numero']
-    for col in columnas:
-        col_lower = col.lower()
-        if 'orden' in col_lower and any(p in col_lower for p in posibles):
-            return col
-    return None
+# Función para comparar los archivos por el nombre de las hojas
+def comparar_archivos(df1, df2):
+    resultados = []
 
+    hojas1 = set(df1.keys())
+    hojas2 = set(df2.keys())
+
+    hojas_comunes = hojas1 & hojas2
+
+    for hoja in hojas_comunes:
+        tabla1 = df1[hoja].fillna("").astype(str)
+        tabla2 = df2[hoja].fillna("").astype(str)
+
+        iguales = tabla1.equals(tabla2)
+
+        resultados.append((hoja, "✅ Iguales" if iguales else "❌ Diferentes"))
+
+    hojas_solo1 = hojas1 - hojas2
+    hojas_solo2 = hojas2 - hojas1
+
+    for hoja in hojas_solo1:
+        resultados.append((hoja, "⚠️ Solo en el archivo 1"))
+    for hoja in hojas_solo2:
+        resultados.append((hoja, "⚠️ Solo en el archivo 2"))
+
+    return resultados
+
+# Ruta principal
 @app.route('/', methods=['GET', 'POST'])
-def upload_files():
-    if request.method == 'POST':
-        archivo1 = request.files.get('archivo1')
-        archivo2 = request.files.get('archivo2')
+def index():
+    mensaje_error = None
+    resultados = []
 
-        if not archivo1 or not archivo2:
-            return "Por favor, subí los dos archivos"
+    if request.method == 'POST':
+        archivo1 = request.files['archivo1']
+        archivo2 = request.files['archivo2']
 
         try:
-            df1 = leer_excel(archivo1)
-            df2 = leer_excel(archivo2)
+            excel1 = pd.read_excel(archivo1, sheet_name=None, engine='openpyxl')
+        except Exception:
+            archivo1.seek(0)
+            excel1 = pd.read_excel(archivo1, sheet_name=None, engine='xlrd')
+
+        try:
+            archivo2.seek(0)
+            excel2 = pd.read_excel(archivo2, sheet_name=None, engine='openpyxl')
+        except Exception:
+            archivo2.seek(0)
+            excel2 = pd.read_excel(archivo2, sheet_name=None, engine='xlrd')
+
+        try:
+            resultados = comparar_archivos(excel1, excel2)
         except Exception as e:
-            return f"Error al leer los archivos: {e}"
+            mensaje_error = f"Error al comparar archivos: {str(e)}"
 
-        columna_id_1 = encontrar_columna_id(df1.columns)
-        columna_id_2 = encontrar_columna_id(df2.columns)
+    return render_template('index.html', resultados=resultados, error=mensaje_error)
 
-        if not columna_id_1 or not columna_id_2:
-            return "Error: No se encontró una columna de Orden válida en uno o ambos archivos."
-
-        ids1 = set(df1[columna_id_1].dropna().astype(str))
-        ids2 = set(df2[columna_id_2].dropna().astype(str))
-
-        ids_solo_1 = sorted(ids1 - ids2)
-        ids_solo_2 = sorted(ids2 - ids1)
-
-        return render_template_string(result_html, ids_solo_1=ids_solo_1, ids_solo_2=ids_solo_2)
-
-    return render_template_string(form_html)
-
+# Ejecutar la aplicación
 if __name__ == '__main__':
     app.run(debug=True)
