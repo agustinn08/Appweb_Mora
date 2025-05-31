@@ -247,22 +247,11 @@ def index():
         archivo2 = request.files['archivo2']
 
         try:
-            excel1 = pd.read_excel(archivo1, sheet_name=None, engine='openpyxl')
-        except Exception:
-            archivo1.seek(0)
-            excel1 = pd.read_excel(archivo1, sheet_name=None, engine='xlrd')
-
-        try:
-            archivo2.seek(0)
-            excel2 = pd.read_excel(archivo2, sheet_name=None, engine='openpyxl')
-        except Exception:
-            archivo2.seek(0)
-            excel2 = pd.read_excel(archivo2, sheet_name=None, engine='xlrd')
-
-        try:
-            resultados = comparar_archivos(excel1, excel2)
+          excel1 = leer_excel_seguro(archivo1)
+          excel2 = leer_excel_seguro(archivo2)
+          resultados = comparar_archivos(excel1, excel2)
         except Exception as e:
-            mensaje_error = f"Error al comparar archivos: {str(e)}"
+          mensaje_error = f"Error al leer los archivos: {str(e)}"
 
     return render_template('index.html', resultados=resultados, error=mensaje_error)
 
