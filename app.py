@@ -187,15 +187,27 @@ result_html = '''
 </html>
 '''
 
-def leer_excel_adaptativo(archivo):
-    nombre = archivo.filename
-    ext = os.path.splitext(nombre)[1].lower()
-    if ext == '.xls':
-        return pd.read_excel(archivo, engine='xlrd')
-    elif ext == '.xlsx':
-        return pd.read_excel(archivo, engine='openpyxl')
+# Tu HTML se mantiene igual (no lo repito aquí para ahorrar espacio)
+
+# Función para leer archivo Excel con el engine correcto
+def leer_excel(file):
+    filename = file.filename
+    extension = os.path.splitext(filename)[-1].lower()
+
+    if extension == '.xls':
+        return pd.read_excel(file, engine='xlrd')
+    elif extension == '.xlsx':
+        return pd.read_excel(file, engine='openpyxl')
     else:
-        raise ValueError("Formato no soportado: debe ser .xls o .xlsx")
+        raise ValueError("El archivo debe ser .xls o .xlsx")
+
+def encontrar_columna_id(columnas):
+    posibles = ['nro', 'n°', 'n*', 'numero']
+    for col in columnas:
+        col_lower = col.lower()
+        if 'orden' in col_lower and any(p in col_lower for p in posibles):
+            return col
+    return None
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_files():
@@ -207,21 +219,17 @@ def upload_files():
             return "Por favor, subí los dos archivos"
 
         try:
-            df1 = leer_excel_adaptativo(archivo1)
-            df2 = leer_excel_adaptativo(archivo2)
+            df1 = leer_excel(archivo1)
+            df2 = leer_excel(archivo2)
         except Exception as e:
             return f"Error al leer los archivos: {e}"
 
-        posibles_nombres_id = ['Nro Orden', 'N° Orden']
-
-        # Buscar el nombre correcto en cada archivo
-        columna_id_1 = next((col for col in posibles_nombres_id if col in df1.columns), None)
-        columna_id_2 = next((col for col in posibles_nombres_id if col in df2.columns), None)
+        columna_id_1 = encontrar_columna_id(df1.columns)
+        columna_id_2 = encontrar_columna_id(df2.columns)
 
         if not columna_id_1 or not columna_id_2:
             return "Error: No se encontró una columna de Orden válida en uno o ambos archivos."
 
-        # Extraer y comparar los valores
         ids1 = set(df1[columna_id_1].dropna().astype(str))
         ids2 = set(df2[columna_id_2].dropna().astype(str))
 
